@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'add_food_place_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -32,54 +33,52 @@ class _LoginPageState extends State<LoginPage> {
 
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please fill all fields")),
+        const SnackBar(content: Text("Lütfen tüm alanları doldurun.")),
       );
       return;
     }
 
     try {
-      // 1️⃣ Sign in the user with Firebase Authentication
+      // 🔐 Sign in
       UserCredential userCredential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
 
-      // 2️⃣ Get UID
-      String uid = userCredential.user!.uid;
+      final String uid = userCredential.user!.uid;
 
-      // 3️⃣ Fetch user data from Realtime Database
-      DatabaseReference userRef = _database.ref('users/$uid');
-      DatabaseEvent event = await userRef.once();
+      // ✅ Check if user exists in database
+      final userRef = _database.ref('users/$uid');
+      final event = await userRef.once();
 
       if (event.snapshot.exists) {
-        Map userData = event.snapshot.value as Map;
-        debugPrint("User Data: $userData");
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Welcome, ${userData['email']}")),
+        // 🟢 Go to AddFoodPlacePage WITH UID
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => AddFoodPlacePage(uid: uid),
+          ),
         );
-
-        // 4️⃣ Navigate to home page
-        Navigator.pushReplacementNamed(context, '/home');
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("User not found in database")),
+        // If user data doesn’t exist, create minimal profile
+        await userRef.set({"email": email});
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => AddFoodPlacePage(uid: uid),
+          ),
         );
       }
     } on FirebaseAuthException catch (e) {
-      String message = "Login failed: ${e.message}";
-      if (e.code == 'user-not-found') {
-        message = "No user found for that email.";
-      } else if (e.code == 'wrong-password') {
-        message = "Incorrect password.";
-      }
+      String message = "Giriş başarısız: ${e.message}";
+      if (e.code == 'user-not-found') message = "Bu e-posta ile kullanıcı bulunamadı.";
+      if (e.code == 'wrong-password') message = "Yanlış şifre girdiniz.";
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Unexpected error: $e")),
+        SnackBar(content: Text("Beklenmedik hata: $e")),
       );
     }
   }
@@ -87,29 +86,56 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Login')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            TextField(
-              controller: _emailController,
-              decoration: const InputDecoration(labelText: 'Email'),
-              keyboardType: TextInputType.emailAddress,
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _passwordController,
-              decoration: const InputDecoration(labelText: 'Password'),
-              obscureText: true,
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _login,
-              child: const Text('Login'),
-            ),
-          ],
+      appBar: AppBar(title: const Text('Yetkili Girişi')),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                "FoodViewer Yetkili Girişi",
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 30),
+              TextField(
+                controller: _emailController,
+                decoration: InputDecoration(
+                  labelText: 'Email',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 15),
+              TextField(
+                controller: _passwordController,
+                decoration: InputDecoration(
+                  labelText: 'Şifre',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                obscureText: true,
+              ),
+              const SizedBox(height: 25),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 50),
+                  backgroundColor: Colors.green,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: _login,
+                child: const Text(
+                  'Giriş Yap',
+                  style: TextStyle(fontSize: 18, color: Colors.white),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
