@@ -40,15 +40,6 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('FoodViewer Home'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await _auth.signOut();
-              Navigator.pushReplacementNamed(context, '/login');
-            },
-          )
-        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
