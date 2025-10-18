@@ -1,8 +1,8 @@
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:intl/intl.dart';
+import '../services/firebase_database_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -13,7 +13,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final _auth = FirebaseAuth.instance;
-  final _database = FirebaseDatabase.instance.ref();
+  final _database = FirebaseDatabaseService.ref; // Use the service
 
   DateTime selectedDate = DateTime.now();
   bool _isLoading = false;
@@ -28,40 +28,34 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _fetchMeals() async {
-    final user = _auth.currentUser;
-    if (user == null) return;
-
     setState(() => _isLoading = true);
-
+    final user = _auth.currentUser;
     final dateKey = DateFormat('yyyy-MM-dd').format(selectedDate);
 
     try {
-      // Kahvaltılar
-      DatabaseEvent kahvaltiEvent = await _database
-          .child('users/${user.uid}/kahvaltilar')
-          .orderByChild('kahvalti_tarihi')
-          .equalTo(dateKey)
-          .once();
+      DatabaseReference kahvaltiRef = _database.child('kahvaltilar');
+      DatabaseReference aksamRef = _database.child('aksam_yemekleri');
 
-      final List<Map<String, dynamic>> kahvaltiData = [];
+      if (user != null) {
+        kahvaltiRef = _database.child('users/${user.uid}/kahvaltilar');
+        aksamRef = _database.child('users/${user.uid}/aksam_yemekleri');
+      }
+
+      DatabaseEvent kahvaltiEvent =
+          await kahvaltiRef.orderByChild('kahvalti_tarihi').equalTo(dateKey).once();
+      DatabaseEvent aksamEvent =
+          await aksamRef.orderByChild('aksam_tarihi').equalTo(dateKey).once();
+
+      List<Map<String, dynamic>> kahvaltiData = [];
       if (kahvaltiEvent.snapshot.exists) {
-        final values = (kahvaltiEvent.snapshot.value as Map).values;
-        for (var val in values) {
+        for (var val in (kahvaltiEvent.snapshot.value as Map).values) {
           kahvaltiData.add(Map<String, dynamic>.from(val));
         }
       }
 
-      // Akşam Yemekleri
-      DatabaseEvent aksamEvent = await _database
-          .child('users/${user.uid}/aksam_yemekleri')
-          .orderByChild('aksam_tarihi')
-          .equalTo(dateKey)
-          .once();
-
-      final List<Map<String, dynamic>> aksamData = [];
+      List<Map<String, dynamic>> aksamData = [];
       if (aksamEvent.snapshot.exists) {
-        final values = (aksamEvent.snapshot.value as Map).values;
-        for (var val in values) {
+        for (var val in (aksamEvent.snapshot.value as Map).values) {
           aksamData.add(Map<String, dynamic>.from(val));
         }
       }
@@ -70,6 +64,8 @@ class _HomePageState extends State<HomePage> {
         kahvaltilar = kahvaltiData;
         aksamYemekleri = aksamData;
       });
+    } catch (e) {
+      debugPrint("Error fetching meals: $e");
     } finally {
       setState(() => _isLoading = false);
     }
@@ -87,7 +83,8 @@ class _HomePageState extends State<HomePage> {
     await _fetchMeals();
   }
 
-  Widget _buildMealCard(String title, IconData icon, List<Map<String, dynamic>> meals, List<String> fields) {
+  Widget _buildMealCard(
+      String title, IconData icon, List<Map<String, dynamic>> meals, List<String> fields) {
     if (meals.isEmpty) {
       return Card(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

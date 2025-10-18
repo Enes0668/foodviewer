@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_database/firebase_database.dart';
-import 'package:firebase_core/firebase_core.dart';
+import '../services/firebase_database_service.dart';
 import 'add_food_place_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -16,16 +15,7 @@ class _LoginPageState extends State<LoginPage> {
   final _passwordController = TextEditingController();
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  late final FirebaseDatabase _database;
-
-  @override
-  void initState() {
-    super.initState();
-    _database = FirebaseDatabase.instanceFor(
-      app: Firebase.app(),
-      databaseURL: "https://foodviewer-e65fa-default-rtdb.firebaseio.com/",
-    );
-  }
+  final _database = FirebaseDatabaseService.ref; // Use the service
 
   Future<void> _login() async {
     final email = _emailController.text.trim();
@@ -39,47 +29,31 @@ class _LoginPageState extends State<LoginPage> {
     }
 
     try {
-      // 🔐 Sign in
-      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      UserCredential userCredential =
+          await _auth.signInWithEmailAndPassword(email: email, password: password);
+      final uid = userCredential.user!.uid;
 
-      final String uid = userCredential.user!.uid;
-
-      // ✅ Check if user exists in database
-      final userRef = _database.ref('users/$uid');
+      final userRef = _database.child('users/$uid');
       final event = await userRef.once();
 
-      if (event.snapshot.exists) {
-        // 🟢 Go to AddFoodPlacePage WITH UID
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => AddFoodPlacePage(uid: uid),
-          ),
-        );
-      } else {
-        // If user data doesn’t exist, create minimal profile
+      if (!event.snapshot.exists) {
         await userRef.set({"email": email});
-
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => AddFoodPlacePage(uid: uid),
-          ),
-        );
       }
-    } on FirebaseAuthException catch (e) {
-      String message = "Giriş başarısız: ${e.message}";
-      if (e.code == 'user-not-found') message = "Bu e-posta ile kullanıcı bulunamadı.";
-      if (e.code == 'wrong-password') message = "Yanlış şifre girdiniz.";
 
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => AddFoodPlacePage(uid: uid)),
+      );
+    } on FirebaseAuthException catch (e) {
+      String message = e.code == 'user-not-found'
+          ? "Bu e-posta ile kullanıcı bulunamadı."
+          : e.code == 'wrong-password'
+              ? "Yanlış şifre girdiniz."
+              : "Giriş başarısız: ${e.message}";
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Beklenmedik hata: $e")),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text("Beklenmedik hata: $e")));
     }
   }
 
@@ -102,9 +76,7 @@ class _LoginPageState extends State<LoginPage> {
                 controller: _emailController,
                 decoration: InputDecoration(
                   labelText: 'Email',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 keyboardType: TextInputType.emailAddress,
               ),
@@ -113,9 +85,7 @@ class _LoginPageState extends State<LoginPage> {
                 controller: _passwordController,
                 decoration: InputDecoration(
                   labelText: 'Şifre',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 obscureText: true,
               ),
@@ -124,9 +94,7 @@ class _LoginPageState extends State<LoginPage> {
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 50),
                   backgroundColor: Colors.green,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 onPressed: _login,
                 child: const Text(
