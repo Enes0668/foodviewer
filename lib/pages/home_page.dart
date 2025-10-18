@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -15,11 +16,10 @@ class _HomePageState extends State<HomePage> {
   final _database = FirebaseDatabase.instance.ref();
 
   DateTime selectedDate = DateTime.now();
+  bool _isLoading = false;
 
   List<Map<String, dynamic>> kahvaltilar = [];
   List<Map<String, dynamic>> aksamYemekleri = [];
-
-  bool _isLoading = false;
 
   @override
   void initState() {
@@ -31,21 +31,19 @@ class _HomePageState extends State<HomePage> {
     final user = _auth.currentUser;
     if (user == null) return;
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
-    final String dateKey = DateFormat('yyyy-MM-dd').format(selectedDate);
+    final dateKey = DateFormat('yyyy-MM-dd').format(selectedDate);
 
     try {
-      // Breakfast
+      // Kahvaltılar
       DatabaseEvent kahvaltiEvent = await _database
           .child('users/${user.uid}/kahvaltilar')
           .orderByChild('kahvalti_tarihi')
           .equalTo(dateKey)
           .once();
 
-      final kahvaltiData = <Map<String, dynamic>>[];
+      final List<Map<String, dynamic>> kahvaltiData = [];
       if (kahvaltiEvent.snapshot.exists) {
         final values = (kahvaltiEvent.snapshot.value as Map).values;
         for (var val in values) {
@@ -53,14 +51,14 @@ class _HomePageState extends State<HomePage> {
         }
       }
 
-      // Dinner
+      // Akşam Yemekleri
       DatabaseEvent aksamEvent = await _database
           .child('users/${user.uid}/aksam_yemekleri')
           .orderByChild('aksam_tarihi')
           .equalTo(dateKey)
           .once();
 
-      final aksamData = <Map<String, dynamic>>[];
+      final List<Map<String, dynamic>> aksamData = [];
       if (aksamEvent.snapshot.exists) {
         final values = (aksamEvent.snapshot.value as Map).values;
         for (var val in values) {
@@ -73,30 +71,23 @@ class _HomePageState extends State<HomePage> {
         aksamYemekleri = aksamData;
       });
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
 
   Future<void> _previousDate() async {
     if (_isLoading) return;
-    setState(() {
-      selectedDate = selectedDate.subtract(const Duration(days: 1));
-    });
+    setState(() => selectedDate = selectedDate.subtract(const Duration(days: 1)));
     await _fetchMeals();
   }
 
   Future<void> _nextDate() async {
     if (_isLoading) return;
-    setState(() {
-      selectedDate = selectedDate.add(const Duration(days: 1));
-    });
+    setState(() => selectedDate = selectedDate.add(const Duration(days: 1)));
     await _fetchMeals();
   }
 
-  Widget _buildMealCard(
-      String title, IconData icon, List<Map<String, dynamic>> meals, List<String> fields) {
+  Widget _buildMealCard(String title, IconData icon, List<Map<String, dynamic>> meals, List<String> fields) {
     if (meals.isEmpty) {
       return Card(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -210,7 +201,7 @@ class _HomePageState extends State<HomePage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 SizedBox(
-                  width: 130,
+                  width: 120,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green.shade700,
@@ -225,7 +216,7 @@ class _HomePageState extends State<HomePage> {
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 const SizedBox(width: 16),
                 SizedBox(
-                  width: 130,
+                  width: 120,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green.shade700,

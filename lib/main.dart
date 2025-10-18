@@ -6,9 +6,13 @@ import 'pages/home_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+
+  // Check if Firebase is already initialized (important for web)
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  }
 
   runApp(const FoodViewerApp());
 }
@@ -25,8 +29,7 @@ class FoodViewerApp extends StatelessWidget {
         useMaterial3: true,
       ),
       debugShowCheckedModeBanner: false,
-      // HomePage is default landing page
-      home: const HomePage(),
+      home: const HomePage(), // default landing page
       routes: {
         '/login': (context) => const LoginPage(),
         '/home': (context) => const HomePage(),
