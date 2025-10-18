@@ -40,7 +40,7 @@ class _HomePageState extends State<HomePage> {
         kahvaltiRef = _database.child('users/${user.uid}/kahvaltilar');
         aksamRef = _database.child('users/${user.uid}/aksam_yemekleri');
       }
-
+      
       DatabaseEvent kahvaltiEvent =
           await kahvaltiRef.orderByChild('kahvalti_tarihi').equalTo(dateKey).once();
       DatabaseEvent aksamEvent =
