@@ -20,6 +20,8 @@ class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> kahvaltilar = [];
   List<Map<String, dynamic>> aksamYemekleri = [];
 
+  bool _isLoading = false; // For async date navigation
+
   @override
   void initState() {
     super.initState();
@@ -30,64 +32,82 @@ class _HomePageState extends State<HomePage> {
     final user = _auth.currentUser;
     if (user == null) return;
 
+    setState(() {
+      _isLoading = true;
+    });
+
     final String dateKey = DateFormat('yyyy-MM-dd').format(selectedDate);
 
-    // Fetch breakfast
-    DatabaseEvent kahvaltiEvent = await _database
-        .child('users/${user.uid}/kahvaltilar')
-        .orderByChild('kahvalti_tarihi')
-        .equalTo(dateKey)
-        .once();
+    try {
+      // Fetch breakfast
+      DatabaseEvent kahvaltiEvent = await _database
+          .child('users/${user.uid}/kahvaltilar')
+          .orderByChild('kahvalti_tarihi')
+          .equalTo(dateKey)
+          .once();
 
-    final kahvaltiData = <Map<String, dynamic>>[];
-    if (kahvaltiEvent.snapshot.exists) {
-      final values = (kahvaltiEvent.snapshot.value as Map).values;
-      for (var val in values) {
-        kahvaltiData.add(Map<String, dynamic>.from(val));
+      final kahvaltiData = <Map<String, dynamic>>[];
+      if (kahvaltiEvent.snapshot.exists) {
+        final values = (kahvaltiEvent.snapshot.value as Map).values;
+        for (var val in values) {
+          kahvaltiData.add(Map<String, dynamic>.from(val));
+        }
       }
-    }
 
-    // Fetch dinner
-    DatabaseEvent aksamEvent = await _database
-        .child('users/${user.uid}/aksam_yemekleri')
-        .orderByChild('aksam_tarihi')
-        .equalTo(dateKey)
-        .once();
+      // Fetch dinner
+      DatabaseEvent aksamEvent = await _database
+          .child('users/${user.uid}/aksam_yemekleri')
+          .orderByChild('aksam_tarihi')
+          .equalTo(dateKey)
+          .once();
 
-    final aksamData = <Map<String, dynamic>>[];
-    if (aksamEvent.snapshot.exists) {
-      final values = (aksamEvent.snapshot.value as Map).values;
-      for (var val in values) {
-        aksamData.add(Map<String, dynamic>.from(val));
+      final aksamData = <Map<String, dynamic>>[];
+      if (aksamEvent.snapshot.exists) {
+        final values = (aksamEvent.snapshot.value as Map).values;
+        for (var val in values) {
+          aksamData.add(Map<String, dynamic>.from(val));
+        }
       }
-    }
 
-    setState(() {
-      kahvaltilar = kahvaltiData;
-      aksamYemekleri = aksamData;
-    });
+      setState(() {
+        kahvaltilar = kahvaltiData;
+        aksamYemekleri = aksamData;
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _previousDate() async {
+    if (_isLoading) return;
+
     setState(() {
       selectedDate = selectedDate.subtract(const Duration(days: 1));
     });
-    await _fetchMeals(); // await Firebase fetch
+    await _fetchMeals();
   }
 
   Future<void> _nextDate() async {
+    if (_isLoading) return;
+
     setState(() {
       selectedDate = selectedDate.add(const Duration(days: 1));
     });
-    await _fetchMeals(); // await Firebase fetch
+    await _fetchMeals();
   }
 
   Widget _buildMealCard(String title, List<Map<String, dynamic>> meals, List<String> fields) {
     if (meals.isEmpty) {
       return Card(
+        color: Colors.green.shade50,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.symmetric(vertical: 8),
         child: Padding(
           padding: const EdgeInsets.all(12),
-          child: Text("No $title for this date."),
+          child: Text("No $title for this date.",
+              style: TextStyle(color: Colors.green.shade900)),
         ),
       );
     }
@@ -95,6 +115,7 @@ class _HomePageState extends State<HomePage> {
     return Column(
       children: meals.map((meal) {
         return Card(
+          color: Colors.green.shade50,
           margin: const EdgeInsets.symmetric(vertical: 8),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           child: Padding(
@@ -102,9 +123,14 @@ class _HomePageState extends State<HomePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text(title,
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green.shade900)),
                 const SizedBox(height: 8),
-                ...fields.map((f) => Text("$f: ${meal[f] ?? '-'}")).toList(),
+                ...fields.map((f) => Text("$f: ${meal[f] ?? '-'}",
+                    style: TextStyle(color: Colors.green.shade800))).toList(),
               ],
             ),
           ),
@@ -119,6 +145,7 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Colors.green,
         title: const Text("FoodViewer"),
         actions: [
           Builder(
@@ -155,16 +182,30 @@ class _HomePageState extends State<HomePage> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Date selector
+            // Date selector row
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                ElevatedButton(onPressed: _previousDate, child: const Text("Önceki Gün")),
+                SizedBox(
+                  width: 120,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700),
+                    onPressed: _isLoading ? null : _previousDate,
+                    child: const Text("Önceki Gün", textAlign: TextAlign.center),
+                  ),
+                ),
                 const SizedBox(width: 16),
                 Text(DateFormat('dd.MM.yyyy').format(selectedDate),
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 const SizedBox(width: 16),
-                ElevatedButton(onPressed: _nextDate, child: const Text("Sonraki Gün")),
+                SizedBox(
+                  width: 120,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700),
+                    onPressed: _isLoading ? null : _nextDate,
+                    child: const Text("Sonraki Gün", textAlign: TextAlign.center),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 20),
