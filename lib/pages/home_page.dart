@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:intl/intl.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -10,33 +11,106 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final _foodController = TextEditingController();
-  final _firestore = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
+  final _database = FirebaseDatabase.instance.ref();
 
-  Future<void> _saveFood() async {
+  DateTime selectedDate = DateTime.now();
+
+  // Data holders
+  List<Map<String, dynamic>> kahvaltilar = [];
+  List<Map<String, dynamic>> aksamYemekleri = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchMeals();
+  }
+
+  Future<void> _fetchMeals() async {
     final user = _auth.currentUser;
-    final foodName = _foodController.text.trim();
+    if (user == null) return;
 
-    if (foodName.isEmpty) return;
+    final String dateKey = DateFormat('yyyy-MM-dd').format(selectedDate);
 
-    if (user != null) {
-      await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('foods')
-          .add({'name': foodName, 'timestamp': FieldValue.serverTimestamp()});
+    // Fetch breakfast
+    DatabaseEvent kahvaltiEvent = await _database
+        .child('users/${user.uid}/kahvaltilar')
+        .orderByChild('kahvalti_tarihi')
+        .equalTo(dateKey)
+        .once();
 
-      _foodController.clear();
+    final kahvaltiData = <Map<String, dynamic>>[];
+    if (kahvaltiEvent.snapshot.exists) {
+      final values = (kahvaltiEvent.snapshot.value as Map).values;
+      for (var val in values) {
+        kahvaltiData.add(Map<String, dynamic>.from(val));
+      }
+    }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Food added successfully!")),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please log in to save food.")),
+    // Fetch dinner
+    DatabaseEvent aksamEvent = await _database
+        .child('users/${user.uid}/aksam_yemekleri')
+        .orderByChild('aksam_tarihi')
+        .equalTo(dateKey)
+        .once();
+
+    final aksamData = <Map<String, dynamic>>[];
+    if (aksamEvent.snapshot.exists) {
+      final values = (aksamEvent.snapshot.value as Map).values;
+      for (var val in values) {
+        aksamData.add(Map<String, dynamic>.from(val));
+      }
+    }
+
+    setState(() {
+      kahvaltilar = kahvaltiData;
+      aksamYemekleri = aksamData;
+    });
+  }
+
+  Future<void> _previousDate() async {
+    setState(() {
+      selectedDate = selectedDate.subtract(const Duration(days: 1));
+    });
+    await _fetchMeals(); // await Firebase fetch
+  }
+
+  Future<void> _nextDate() async {
+    setState(() {
+      selectedDate = selectedDate.add(const Duration(days: 1));
+    });
+    await _fetchMeals(); // await Firebase fetch
+  }
+
+  Widget _buildMealCard(String title, List<Map<String, dynamic>> meals, List<String> fields) {
+    if (meals.isEmpty) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Text("No $title for this date."),
+        ),
       );
     }
+
+    return Column(
+      children: meals.map((meal) {
+        return Card(
+          margin: const EdgeInsets.symmetric(vertical: 8),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                ...fields.map((f) => Text("$f: ${meal[f] ?? '-'}")).toList(),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
   }
 
   @override
@@ -45,9 +119,8 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('FoodViewer Home'),
+        title: const Text("FoodViewer"),
         actions: [
-          // Button to open the drawer
           Builder(
             builder: (context) => IconButton(
               icon: const Icon(Icons.menu),
@@ -56,7 +129,6 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
-      // Drawer opens from right side
       endDrawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
@@ -72,85 +144,48 @@ class _HomePageState extends State<HomePage> {
               leading: const Icon(Icons.login),
               title: const Text('Yetkili Girişi'),
               onTap: () {
-                Navigator.pop(context); // close drawer
-                Navigator.pushNamed(context, '/login');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.info),
-              title: const Text('About'),
-              onTap: () {
                 Navigator.pop(context);
-                // Navigate to about page if exists
+                Navigator.pushNamed(context, '/login');
               },
             ),
           ],
         ),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            Text('Welcome, ${user?.email ?? 'Guest'}'),
-            const SizedBox(height: 20),
-            TextField(
-              controller: _foodController,
-              decoration: const InputDecoration(
-                labelText: 'Enter food name',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: _saveFood,
-              child: const Text('Save Food'),
+            // Date selector
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton(onPressed: _previousDate, child: const Text("Önceki Gün")),
+                const SizedBox(width: 16),
+                Text(DateFormat('dd.MM.yyyy').format(selectedDate),
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const SizedBox(width: 16),
+                ElevatedButton(onPressed: _nextDate, child: const Text("Sonraki Gün")),
+              ],
             ),
             const SizedBox(height: 20),
-            const Text('Your Favorite Foods:'),
-            const SizedBox(height: 10),
             Expanded(
-              child: user != null
-                  ? StreamBuilder<QuerySnapshot>(
-                      stream: _firestore
-                          .collection('users')
-                          .doc(user.uid)
-                          .collection('foods')
-                          .orderBy('timestamp', descending: true)
-                          .snapshots(),
-                      builder: (context, snapshot) {
-                        if (!snapshot.hasData) {
-                          return const Center(
-                              child: CircularProgressIndicator());
-                        }
-
-                        final foods = snapshot.data!.docs;
-
-                        if (foods.isEmpty) {
-                          return const Center(
-                            child: Text('No foods added yet.'),
-                          );
-                        }
-
-                        return ListView.builder(
-                          itemCount: foods.length,
-                          itemBuilder: (context, index) {
-                            final food = foods[index]['name'];
-                            return ListTile(
-                              title: Text(food),
-                              trailing: IconButton(
-                                icon: const Icon(Icons.delete),
-                                onPressed: () async {
-                                  await foods[index].reference.delete();
-                                },
-                              ),
-                            );
-                          },
-                        );
-                      },
-                    )
-                  : const Center(
-                      child: Text('Log in to see your favorite foods.'),
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    _buildMealCard(
+                      "Kahvaltılar",
+                      kahvaltilar,
+                      ["ana_kahvalti", "diger1", "diger2", "diger3"],
                     ),
+                    const SizedBox(height: 20),
+                    _buildMealCard(
+                      "Akşam Yemekleri",
+                      aksamYemekleri,
+                      ["yemek1", "yemek2", "pilav_makarna", "meze", "tatli"],
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
