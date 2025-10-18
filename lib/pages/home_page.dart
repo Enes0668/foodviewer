@@ -16,11 +16,10 @@ class _HomePageState extends State<HomePage> {
 
   DateTime selectedDate = DateTime.now();
 
-  // Data holders
   List<Map<String, dynamic>> kahvaltilar = [];
   List<Map<String, dynamic>> aksamYemekleri = [];
 
-  bool _isLoading = false; // For async date navigation
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -39,7 +38,7 @@ class _HomePageState extends State<HomePage> {
     final String dateKey = DateFormat('yyyy-MM-dd').format(selectedDate);
 
     try {
-      // Fetch breakfast
+      // Breakfast
       DatabaseEvent kahvaltiEvent = await _database
           .child('users/${user.uid}/kahvaltilar')
           .orderByChild('kahvalti_tarihi')
@@ -54,7 +53,7 @@ class _HomePageState extends State<HomePage> {
         }
       }
 
-      // Fetch dinner
+      // Dinner
       DatabaseEvent aksamEvent = await _database
           .child('users/${user.uid}/aksam_yemekleri')
           .orderByChild('aksam_tarihi')
@@ -82,7 +81,6 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _previousDate() async {
     if (_isLoading) return;
-
     setState(() {
       selectedDate = selectedDate.subtract(const Duration(days: 1));
     });
@@ -91,23 +89,33 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _nextDate() async {
     if (_isLoading) return;
-
     setState(() {
       selectedDate = selectedDate.add(const Duration(days: 1));
     });
     await _fetchMeals();
   }
 
-  Widget _buildMealCard(String title, List<Map<String, dynamic>> meals, List<String> fields) {
+  Widget _buildMealCard(
+      String title, IconData icon, List<Map<String, dynamic>> meals, List<String> fields) {
     if (meals.isEmpty) {
       return Card(
-        color: Colors.green.shade50,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.symmetric(vertical: 8),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Text("No $title for this date.",
-              style: TextStyle(color: Colors.green.shade900)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        elevation: 5,
+        margin: const EdgeInsets.symmetric(vertical: 10),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(colors: [Colors.green.shade100, Colors.green.shade50]),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(icon, color: Colors.green.shade800, size: 28),
+              const SizedBox(width: 12),
+              Text("No $title for this date",
+                  style: TextStyle(color: Colors.green.shade900, fontSize: 16)),
+            ],
+          ),
         ),
       );
     }
@@ -115,22 +123,36 @@ class _HomePageState extends State<HomePage> {
     return Column(
       children: meals.map((meal) {
         return Card(
-          color: Colors.green.shade50,
-          margin: const EdgeInsets.symmetric(vertical: 8),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          elevation: 5,
+          margin: const EdgeInsets.symmetric(vertical: 10),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                  colors: [Colors.green.shade50, Colors.green.shade100.withOpacity(0.7)]),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green.shade900)),
-                const SizedBox(height: 8),
-                ...fields.map((f) => Text("$f: ${meal[f] ?? '-'}",
-                    style: TextStyle(color: Colors.green.shade800))).toList(),
+                Row(
+                  children: [
+                    Icon(icon, color: Colors.green.shade800, size: 28),
+                    const SizedBox(width: 8),
+                    Text(title,
+                        style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green.shade900)),
+                  ],
+                ),
+                const Divider(color: Colors.green, thickness: 1, height: 16),
+                ...fields.map((f) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Text("$f: ${meal[f] ?? '-'}",
+                          style: TextStyle(color: Colors.green.shade800, fontSize: 16)),
+                    )),
               ],
             ),
           ),
@@ -144,6 +166,7 @@ class _HomePageState extends State<HomePage> {
     final user = _auth.currentUser;
 
     return Scaffold(
+      backgroundColor: Colors.green.shade50,
       appBar: AppBar(
         backgroundColor: Colors.green,
         title: const Text("FoodViewer"),
@@ -182,14 +205,17 @@ class _HomePageState extends State<HomePage> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Date selector row
+            // Date navigation
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 SizedBox(
-                  width: 120,
+                  width: 130,
                   child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green.shade700,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10))),
                     onPressed: _isLoading ? null : _previousDate,
                     child: const Text("Önceki Gün", textAlign: TextAlign.center),
                   ),
@@ -199,9 +225,12 @@ class _HomePageState extends State<HomePage> {
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 const SizedBox(width: 16),
                 SizedBox(
-                  width: 120,
+                  width: 130,
                   child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green.shade700,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10))),
                     onPressed: _isLoading ? null : _nextDate,
                     child: const Text("Sonraki Gün", textAlign: TextAlign.center),
                   ),
@@ -209,25 +238,26 @@ class _HomePageState extends State<HomePage> {
               ],
             ),
             const SizedBox(height: 20),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    _buildMealCard(
-                      "Kahvaltılar",
-                      kahvaltilar,
-                      ["ana_kahvalti", "diger1", "diger2", "diger3"],
+            _isLoading
+                ? const Center(child: CircularProgressIndicator(color: Colors.green))
+                : Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          _buildMealCard(
+                              "Kahvaltılar", Icons.free_breakfast, kahvaltilar, [
+                            "ana_kahvalti",
+                            "diger1",
+                            "diger2",
+                            "diger3"
+                          ]),
+                          const SizedBox(height: 20),
+                          _buildMealCard("Akşam Yemekleri", Icons.dinner_dining,
+                              aksamYemekleri, ["yemek1", "yemek2", "pilav_makarna", "meze", "tatli"]),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 20),
-                    _buildMealCard(
-                      "Akşam Yemekleri",
-                      aksamYemekleri,
-                      ["yemek1", "yemek2", "pilav_makarna", "meze", "tatli"],
-                    ),
-                  ],
-                ),
-              ),
-            ),
+                  ),
           ],
         ),
       ),
