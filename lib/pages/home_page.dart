@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/data/latest_all.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 import '../services/firebase_database_service.dart';
 
 class HomePage extends StatefulWidget {
@@ -30,10 +32,14 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     _initializeNotifications();
     _fetchMeals();
-    _showDailyMealNotification();
+    _scheduleDaily8AMNotification(); // ✅ Schedule once per day
   }
 
+  /// Initialize notifications and timezone
   Future<void> _initializeNotifications() async {
+    tz.initializeTimeZones();
+    tz.setLocalLocation(tz.getLocation('Europe/Istanbul'));
+
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
 
@@ -44,25 +50,39 @@ class _HomePageState extends State<HomePage> {
     await flutterLocalNotificationsPlugin.initialize(initializationSettings);
   }
 
-  Future<void> _showDailyMealNotification() async {
-    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+  /// ✅ Schedule notification at 8:00 AM every day
+  Future<void> _scheduleDaily8AMNotification() async {
+    const AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
       'daily_meal_channel',
       'Daily Meal Notifications',
-      channelDescription: 'Daily notification to check meals',
+      channelDescription: 'Daily reminder to check today’s meals',
       importance: Importance.high,
       priority: Priority.high,
-      showWhen: false,
     );
 
-    const NotificationDetails platformChannelSpecifics =
-        NotificationDetails(android: androidPlatformChannelSpecifics);
+    const NotificationDetails notificationDetails =
+        NotificationDetails(android: androidDetails);
 
-    await flutterLocalNotificationsPlugin.show(
+    final now = tz.TZDateTime.now(tz.local);
+    var scheduledTime = tz.TZDateTime(
+        tz.local, now.year, now.month, now.day, 8, 0); // 8:00 AM
+
+    // If 8:00 AM already passed, schedule for tomorrow
+    if (now.isAfter(scheduledTime)) {
+      scheduledTime = scheduledTime.add(const Duration(days: 1));
+    }
+
+    await flutterLocalNotificationsPlugin.zonedSchedule(
       0,
       '🍽 Bugünün yemeklerine göz at',
       'Tıklayarak bugünün menüsünü görüntüle!',
-      platformChannelSpecifics,
+      scheduledTime,
+      notificationDetails,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      matchDateTimeComponents: DateTimeComponents.time,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
     );
   }
 
@@ -232,6 +252,7 @@ class _HomePageState extends State<HomePage> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
+            // Date navigation buttons
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
