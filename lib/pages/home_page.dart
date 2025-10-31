@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../services/firebase_database_service.dart';
 
 class HomePage extends StatefulWidget {
@@ -13,7 +14,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final _auth = FirebaseAuth.instance;
-  final _database = FirebaseDatabaseService.ref; // Use the service
+  final _database = FirebaseDatabaseService.ref;
 
   DateTime selectedDate = DateTime.now();
   bool _isLoading = false;
@@ -21,10 +22,48 @@ class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> kahvaltilar = [];
   List<Map<String, dynamic>> aksamYemekleri = [];
 
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
+
   @override
   void initState() {
     super.initState();
+    _initializeNotifications();
     _fetchMeals();
+    _showDailyMealNotification();
+  }
+
+  Future<void> _initializeNotifications() async {
+    const AndroidInitializationSettings initializationSettingsAndroid =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+
+    const InitializationSettings initializationSettings = InitializationSettings(
+      android: initializationSettingsAndroid,
+    );
+
+    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+  }
+
+  Future<void> _showDailyMealNotification() async {
+    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+        AndroidNotificationDetails(
+      'daily_meal_channel',
+      'Daily Meal Notifications',
+      channelDescription: 'Daily notification to check meals',
+      importance: Importance.high,
+      priority: Priority.high,
+      showWhen: false,
+    );
+
+    const NotificationDetails platformChannelSpecifics =
+        NotificationDetails(android: androidPlatformChannelSpecifics);
+
+    await flutterLocalNotificationsPlugin.show(
+      0,
+      '🍽 Bugünün yemeklerine göz at',
+      'Tıklayarak bugünün menüsünü görüntüle!',
+      platformChannelSpecifics,
+    );
   }
 
   Future<void> _fetchMeals() async {
@@ -40,7 +79,7 @@ class _HomePageState extends State<HomePage> {
         kahvaltiRef = _database.child('users/${user.uid}/kahvaltilar');
         aksamRef = _database.child('users/${user.uid}/aksam_yemekleri');
       }
-      
+
       DatabaseEvent kahvaltiEvent =
           await kahvaltiRef.orderByChild('kahvalti_tarihi').equalTo(dateKey).once();
       DatabaseEvent aksamEvent =
@@ -193,7 +232,6 @@ class _HomePageState extends State<HomePage> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Date navigation
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -232,16 +270,12 @@ class _HomePageState extends State<HomePage> {
                     child: SingleChildScrollView(
                       child: Column(
                         children: [
-                          _buildMealCard(
-                              "Kahvaltılar", Icons.free_breakfast, kahvaltilar, [
-                            "ana_kahvalti",
-                            "diger1",
-                            "diger2",
-                            "diger3"
-                          ]),
+                          _buildMealCard("Kahvaltılar", Icons.free_breakfast, kahvaltilar,
+                              ["ana_kahvalti", "diger1", "diger2", "diger3"]),
                           const SizedBox(height: 20),
                           _buildMealCard("Akşam Yemekleri", Icons.dinner_dining,
-                              aksamYemekleri, ["yemek1", "yemek2", "pilav_makarna", "meze", "tatli"]),
+                              aksamYemekleri,
+                              ["yemek1", "yemek2", "pilav_makarna", "meze", "tatli"]),
                         ],
                       ),
                     ),
