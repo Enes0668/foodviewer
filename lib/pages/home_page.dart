@@ -87,48 +87,57 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _fetchMeals() async {
-    setState(() => _isLoading = true);
-    final user = _auth.currentUser;
-    final dateKey = DateFormat('yyyy-MM-dd').format(selectedDate);
+  setState(() => _isLoading = true);
+  final dateKey = DateFormat('yyyy-MM-dd').format(selectedDate);
 
-    try {
-      DatabaseReference kahvaltiRef = _database.child('kahvaltilar');
-      DatabaseReference aksamRef = _database.child('aksam_yemekleri');
+  try {
+    DatabaseReference usersRef = _database.child('users');
+    DatabaseEvent usersEvent = await usersRef.once();
 
-      if (user != null) {
-        kahvaltiRef = _database.child('users/${user.uid}/kahvaltilar');
-        aksamRef = _database.child('users/${user.uid}/aksam_yemekleri');
-      }
+    List<Map<String, dynamic>> allKahvaltilar = [];
+    List<Map<String, dynamic>> allAksamYemekleri = [];
 
-      DatabaseEvent kahvaltiEvent =
-          await kahvaltiRef.orderByChild('kahvalti_tarihi').equalTo(dateKey).once();
-      DatabaseEvent aksamEvent =
-          await aksamRef.orderByChild('aksam_tarihi').equalTo(dateKey).once();
+    if (usersEvent.snapshot.exists) {
+      final usersData = Map<String, dynamic>.from(usersEvent.snapshot.value as Map);
 
-      List<Map<String, dynamic>> kahvaltiData = [];
-      if (kahvaltiEvent.snapshot.exists) {
-        for (var val in (kahvaltiEvent.snapshot.value as Map).values) {
-          kahvaltiData.add(Map<String, dynamic>.from(val));
+      usersData.forEach((uid, userData) {
+        final userMap = Map<String, dynamic>.from(userData);
+
+        // Kahvaltıları filtrele ve ekle
+        if (userMap.containsKey('kahvaltilar')) {
+          final kahvaltiMap = Map<String, dynamic>.from(userMap['kahvaltilar']);
+          kahvaltiMap.values.forEach((meal) {
+            final mealMap = Map<String, dynamic>.from(meal);
+            if (mealMap['kahvalti_tarihi'] == dateKey) {
+              allKahvaltilar.add(mealMap);
+            }
+          });
         }
-      }
 
-      List<Map<String, dynamic>> aksamData = [];
-      if (aksamEvent.snapshot.exists) {
-        for (var val in (aksamEvent.snapshot.value as Map).values) {
-          aksamData.add(Map<String, dynamic>.from(val));
+        // Akşam yemeklerini filtrele ve ekle
+        if (userMap.containsKey('aksam_yemekleri')) {
+          final aksamMap = Map<String, dynamic>.from(userMap['aksam_yemekleri']);
+          aksamMap.values.forEach((meal) {
+            final mealMap = Map<String, dynamic>.from(meal);
+            if (mealMap['aksam_tarihi'] == dateKey) {
+              allAksamYemekleri.add(mealMap);
+            }
+          });
         }
-      }
-
-      setState(() {
-        kahvaltilar = kahvaltiData;
-        aksamYemekleri = aksamData;
       });
-    } catch (e) {
-      debugPrint("Error fetching meals: $e");
-    } finally {
-      setState(() => _isLoading = false);
     }
+
+    setState(() {
+      kahvaltilar = allKahvaltilar;
+      aksamYemekleri = allAksamYemekleri;
+    });
+  } catch (e) {
+    debugPrint("Error fetching meals: $e");
+  } finally {
+    setState(() => _isLoading = false);
   }
+}
+
 
   Future<void> _previousDate() async {
     if (_isLoading) return;
@@ -253,37 +262,41 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           children: [
             // Date navigation buttons
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SizedBox(
-                  width: 120,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green.shade700,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10))),
-                    onPressed: _isLoading ? null : _previousDate,
-                    child: const Text("Önceki Gün", textAlign: TextAlign.center),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Text(DateFormat('dd.MM.yyyy').format(selectedDate),
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                const SizedBox(width: 16),
-                SizedBox(
-                  width: 120,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green.shade700,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10))),
-                    onPressed: _isLoading ? null : _nextDate,
-                    child: const Text("Sonraki Gün", textAlign: TextAlign.center),
-                  ),
-                ),
-              ],
-            ),
+           Row(
+  // Butonlar artık küçük olduğu için Row'un ana eksende ortalanmasını sağlayabiliriz.
+  mainAxisAlignment: MainAxisAlignment.center,
+  children: [
+    // 1. Önceki Gün Butonu (IconButton ile küçültüldü)
+    IconButton(
+      icon: const Icon(Icons.arrow_back_ios),
+      color: Colors.green.shade700, // Buton rengi
+      onPressed: _isLoading ? null : _previousDate,
+    ),
+
+    // 2. Tarih Metni (Expanded içinde, kalan tüm alanı kullanıyor)
+    Expanded(
+      // IconButton'lar arasında daha iyi bir boşluk sağlamak için Center'ı kaldırdım.
+      // Eğer çok yapışık durursa, Text'e yatay padding verebilirsiniz.
+      child: Padding( 
+        padding: const EdgeInsets.symmetric(horizontal: 4.0), // Opsiyonel küçük bir boşluk
+        child: Text(
+          DateFormat('dd.MM.yyyy').format(selectedDate),
+          textAlign: TextAlign.center, // Metni ortada tut
+          maxLines: 1, // Alt alta gelmesini engelle
+          overflow: TextOverflow.ellipsis, // Sadece aşırı kritik durumlarda "..." gösterir
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+      ),
+    ),
+
+    // 3. Sonraki Gün Butonu (IconButton ile küçültüldü)
+    IconButton(
+      icon: const Icon(Icons.arrow_forward_ios),
+      color: Colors.green.shade700, // Buton rengi
+      onPressed: _isLoading ? null : _nextDate,
+    ),
+  ],
+),
             const SizedBox(height: 20),
             _isLoading
                 ? const Center(child: CircularProgressIndicator(color: Colors.green))

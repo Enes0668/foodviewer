@@ -49,57 +49,71 @@ class _AddFoodPlacePageState extends State<AddFoodPlacePage> {
 
   Future<void> _saveKahvalti() async {
     if (_kahvaltiDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Lütfen kahvaltı tarihini seçin.")),
-      );
-      return;
-    }
-
-    await _database.child("users/${widget.uid}/kahvaltilar").push().set({
-      "ana_kahvalti": _anaKahvaltiController.text,
-      "diger1": _diger1Controller.text,
-      "diger2": _diger2Controller.text,
-      "diger3": _diger3Controller.text,
-      "kahvalti_tarihi": DateFormat('yyyy-MM-dd').format(_kahvaltiDate!),
-    });
-
-    _anaKahvaltiController.clear();
-    _diger1Controller.clear();
-    _diger2Controller.clear();
-    _diger3Controller.clear();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Kahvaltı başarıyla kaydedildi!")),
-    );
-  }
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Lütfen kahvaltı tarihini seçin.")),
+          );
+          return;
+        }
+        
+        final kahvaltiData = {
+          "ana_kahvalti": _anaKahvaltiController.text,
+          "diger1": _diger1Controller.text,
+          "diger2": _diger2Controller.text,
+          "diger3": _diger3Controller.text,
+          "kahvalti_tarihi": DateFormat('yyyy-MM-dd').format(_kahvaltiDate!),
+          "uid": widget.uid,
+        };
+        
+        // Hem kullanıcıya özel hem de herkese açık kaydet
+        await Future.wait([
+          _database.child("users/${widget.uid}/kahvaltilar").push().set(kahvaltiData),
+          _database.child("kahvaltilar").push().set(kahvaltiData),
+        ]);
+        
+        _anaKahvaltiController.clear();
+        _diger1Controller.clear();
+        _diger2Controller.clear();
+        _diger3Controller.clear();
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Kahvaltı başarıyla kaydedildi!")),
+        );
+      }
 
   Future<void> _saveAksam() async {
     if (_aksamDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Lütfen akşam yemeği tarihini seçin.")),
-      );
-      return;
-    }
-
-    await _database.child("users/${widget.uid}/aksam_yemekleri").push().set({
-      "yemek1": _yemek1Controller.text,
-      "yemek2": _yemek2Controller.text,
-      "pilav_makarna": _pilavController.text, // ✅ fixed key
-      "meze": _mezeController.text,
-      "tatli": _tatliController.text,
-      "aksam_tarihi": DateFormat('yyyy-MM-dd').format(_aksamDate!),
-    });
-
-    _yemek1Controller.clear();
-    _yemek2Controller.clear();
-    _pilavController.clear();
-    _mezeController.clear();
-    _tatliController.clear();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Akşam yemeği başarıyla kaydedildi!")),
-    );
-  }
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Lütfen akşam yemeği tarihini seçin.")),
+          );
+          return;
+        }
+        
+        final aksamData = {
+          "yemek1": _yemek1Controller.text,
+          "yemek2": _yemek2Controller.text,
+          "pilav_makarna": _pilavController.text,
+          "meze": _mezeController.text,
+          "tatli": _tatliController.text,
+          "aksam_tarihi": DateFormat('yyyy-MM-dd').format(_aksamDate!),
+          "uid": widget.uid,
+        };
+        
+        // Hem kullanıcıya özel hem de herkese açık kaydet
+        await Future.wait([
+          _database.child("users/${widget.uid}/aksam_yemekleri").push().set(aksamData),
+          _database.child("aksam_yemekleri").push().set(aksamData),
+        ]);
+        
+        _yemek1Controller.clear();
+        _yemek2Controller.clear();
+        _pilavController.clear();
+        _mezeController.clear();
+        _tatliController.clear();
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Akşam yemeği başarıyla kaydedildi!")),
+        );
+      }
 
   Widget _buildSection(String title, List<Widget> fields) {
     return Card(

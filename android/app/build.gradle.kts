@@ -41,7 +41,7 @@ android {
 dependencies {
     // ✅ Add this line for desugaring support
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
-
+    
     // You can keep other dependencies Flutter adds automatically
 }
 
