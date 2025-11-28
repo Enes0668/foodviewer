@@ -4,15 +4,21 @@ import 'firebase_options.dart';
 import 'pages/login_page.dart';
 import 'pages/home_page.dart';
 
+// ⬇️ Bildirim servisini import ET
+import 'services/notification_service.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Check if Firebase is already initialized (important for web)
+  // Firebase init
   if (Firebase.apps.isEmpty) {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
   }
+
+  // ⬇️ Bildirimleri başlat (EN ÖNEMLİ EKSİKTİ BU)
+  await NotificationService.initializeNotification();
 
   runApp(const FoodViewerApp());
 }
@@ -28,7 +34,7 @@ class FoodViewerApp extends StatelessWidget {
         useMaterial3: true,
       ),
       debugShowCheckedModeBanner: false,
-      home: const HomePage(), // default landing page
+      home: const HomePage(),
       routes: {
         '/login': (context) => const LoginPage(),
         '/home': (context) => const HomePage(),
