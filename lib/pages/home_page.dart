@@ -152,70 +152,91 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildMealCard(
-      String title, IconData icon, List<Map<String, dynamic>> meals, List<String> fields) {
-    if (meals.isEmpty) {
+    String title, IconData icon, List<Map<String, dynamic>> meals, List<String> fields) {
+  
+  // Eğer liste boşsa Türkçe mesaj göster
+  if (meals.isEmpty) {
+    String message = "";
+
+    if (title == "Kahvaltılar") {
+      message = "Kahvaltı öğünü bulunamadı";
+    } else if (title == "Akşam Yemekleri") {
+      message = "Akşam Yemeği öğünü bulunamadı";
+    } else {
+      message = "Öğün bulunamadı";
+    }
+
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 5,
+      margin: const EdgeInsets.symmetric(vertical: 10),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: [Colors.green.shade100, Colors.green.shade50]),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(icon, color: Colors.green.shade800, size: 28),
+            const SizedBox(width: 12),
+            Text(
+              message,
+              style: TextStyle(color: Colors.green.shade900, fontSize: 16),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Eğer öğün varsa kartları oluştur
+  return Column(
+    children: meals.map((meal) {
       return Card(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         elevation: 5,
         margin: const EdgeInsets.symmetric(vertical: 10),
         child: Container(
           decoration: BoxDecoration(
-            gradient: LinearGradient(colors: [Colors.green.shade100, Colors.green.shade50]),
+            gradient: LinearGradient(
+                colors: [Colors.green.shade50, Colors.green.shade100.withOpacity(0.7)]),
             borderRadius: BorderRadius.circular(16),
           ),
           padding: const EdgeInsets.all(16),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, color: Colors.green.shade800, size: 28),
-              const SizedBox(width: 12),
-              Text("No $title for this date",
-                  style: TextStyle(color: Colors.green.shade900, fontSize: 16)),
+              Row(
+                children: [
+                  Icon(icon, color: Colors.green.shade800, size: 28),
+                  const SizedBox(width: 8),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green.shade900,
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(color: Colors.green, thickness: 1, height: 16),
+              ...fields.map((f) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Text(
+                      "$f: ${meal[f] ?? '-'}",
+                      style: TextStyle(color: Colors.green.shade800, fontSize: 16),
+                    ),
+                  )),
             ],
           ),
         ),
       );
-    }
+    }).toList(),
+  );
+}
 
-    return Column(
-      children: meals.map((meal) {
-        return Card(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          elevation: 5,
-          margin: const EdgeInsets.symmetric(vertical: 10),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                  colors: [Colors.green.shade50, Colors.green.shade100.withOpacity(0.7)]),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(icon, color: Colors.green.shade800, size: 28),
-                    const SizedBox(width: 8),
-                    Text(title,
-                        style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green.shade900)),
-                  ],
-                ),
-                const Divider(color: Colors.green, thickness: 1, height: 16),
-                ...fields.map((f) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Text("$f: ${meal[f] ?? '-'}",
-                          style: TextStyle(color: Colors.green.shade800, fontSize: 16)),
-                    )),
-              ],
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -225,7 +246,7 @@ class _HomePageState extends State<HomePage> {
       backgroundColor: Colors.green.shade50,
       appBar: AppBar(
         backgroundColor: Colors.green,
-        title: const Text("FoodViewer"),
+        title: const Text("Yemek Gösterici"),
         actions: [
           Builder(
             builder: (context) => IconButton(

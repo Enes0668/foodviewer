@@ -23,7 +23,6 @@ class FoodViewerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'FoodViewer',
       theme: ThemeData(
         primarySwatch: Colors.green,
         useMaterial3: true,
